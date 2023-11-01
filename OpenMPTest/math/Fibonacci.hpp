@@ -5,11 +5,16 @@ int OmpFib(int n) {
   if (n < 2) {
     return n;
   }
+  if(n > 20){
 #pragma omp task shared(x) untied
   { x = OmpFib(n - 1); }
 #pragma omp task shared(y) untied
   { y = OmpFib(n - 2); }
 #pragma omp taskwait
+  } else {
+    x = OmpFib(n - 1);
+    y = OmpFib(n - 2);
+  }
   return x + y;
 }
 
