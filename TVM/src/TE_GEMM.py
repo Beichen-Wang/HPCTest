@@ -3,6 +3,7 @@ import tvm.testing
 from tvm import te
 import numpy as np
 import timeit
+import os
 
 class GEMM:
     def __init__(self, M, N, K, bs, targetI = "llvm"):
@@ -50,6 +51,9 @@ class GEMM:
         return func
     #optimizer1---final--block,vectory,parallel
     def TEBlockVectoryParallelGemm(self):
+        self.M = te.var("M")
+        self.K = te.var("K")
+        self.N = te.var("N")
         k = te.reduce_axis((0, self.K), "k")
         A = te.placeholder((self.M, self.K), name="A")
         B = te.placeholder((self.K, self.N), name="B")
@@ -153,6 +157,12 @@ class GEMM:
         print(tvm.lower(s, [A, B, C], simple_mode=True))
         return func
 
+    def GetLibrary(self, func):
+        curr_path = os.path.dirname(os.path.abspath(os.path.expanduser(__file__)))
+        dylib_path = os.path.join(curr_path, "lib/GEMM.so")
+        func.export_library(dylib_path)
+
+
 if __name__ == "__main__":
     M = 512
     K = 5120
@@ -164,6 +174,7 @@ if __name__ == "__main__":
     instance.EvaluateOperation(funcDefault,baseC)
     funcBlockPermuteVectory = instance.TEBlockVectoryParallelGemm()
     instance.EvaluateOperation(funcBlockPermuteVectory,baseC)
+    instance.GetLibrary(funcBlockPermuteVectory)
     # funcPack = instance.TEPackGemm()
     # instance.EvaluateOperation(funcPack,baseC)
     # funcCache = instance.TECachePackGemm()
