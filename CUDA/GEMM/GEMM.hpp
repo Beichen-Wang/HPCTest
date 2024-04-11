@@ -131,16 +131,9 @@ class GEMM {
         std::cout << "cublas Excute Time: " << cublasTime << " ms" << std::endl;
         std::cout << "cuda Excute Time: " << cudaTime << " ms" << std::endl;
 
-        if (cublasResult.isApprox(cudaResult, 1e-6)) {
-            std::cout << "executions are the same." << std::endl;
-        } else {
-            std::cout << "Executions are different:" << std::endl;
-            std::cout << "Eigen Result: \n" << eigenResult << std::endl;
-            std::cout << "cublas Result: \n" << cublasResult << std::endl;
-            std::cout << "cuda Result: \n" << cudaResult << std::endl;
-        }
+        // std::cout << "cublas Result: \n" << cublasResult << std::endl;
 
-        // if (eigenResult.isApprox(cudaResult, 1e-6) && eigenResult.isApprox(cublasResult, 1e-6)) {
+        // if (cublasResult.isApprox(cudaResult, 1e-6)) {
         //     std::cout << "executions are the same." << std::endl;
         // } else {
         //     std::cout << "Executions are different:" << std::endl;
@@ -148,5 +141,14 @@ class GEMM {
         //     std::cout << "cublas Result: \n" << cublasResult << std::endl;
         //     std::cout << "cuda Result: \n" << cudaResult << std::endl;
         // }
+
+        if (eigenResult.isApprox(cudaResult, 1e-6) && eigenResult.isApprox(cublasResult, 1e-6)) {
+            std::cout << "executions are the same." << std::endl;
+        } else {
+            std::cout << "Executions are different:" << std::endl;
+            std::cout << "Eigen Result: \n" << eigenResult << std::endl;
+            std::cout << "cublas Result: \n" << cublasResult << std::endl;
+            std::cout << "cuda Result: \n" << cudaResult << std::endl;
+        }
     }
 };

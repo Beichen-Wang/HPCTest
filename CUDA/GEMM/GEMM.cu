@@ -193,119 +193,110 @@ __global__ void gemmKernel4(const float * a, const float * b, float *c, float al
 __global__ void gemmKernel5(const float * a, const float * b, float *c, float alpha, float beta, int M, int N, int K){
     float4 tc[4] = {{make_float4(0.0f, 0.0f, 0.0f, 0.0f)}};
     float4 * f4c = reinterpret_cast<float4 *>(c);
-    if(threadIdx.x == 0 && threadIdx.y == 0){
-        printf(" step in kernel5\n");
-    }
-    // extern __shared__ float4 sharedMatrix[];
+    extern __shared__ float4 sharedMatrix[];
 
-    // float4 * shemA = sharedMatrix;
-    // float4 * shemB = sharedMatrix + 32 * 2 * 32;
-    // if(threadIdx.x == 0 && threadIdx.y == 0){
-    //     printf(" %f\n", shemA[0].x);
-    // }
+    float4 * shemA = sharedMatrix;
+    float4 * shemB = sharedMatrix + 32 * 2 * 32;
+
     // __shared__ float4 shemA[32 * 2][32];
     // __shared__ float4 shemB[32][32 * 2];
-    // float4 fragmentA;
-    // float4 fragmentB;
+    float4 fragmentA;
+    float4 fragmentB;
 
-    // int A_SM_OFFSET = 0;
-    // int B_SM_OFFSET = 0;
+    int A_SM_OFFSET = 0;
+    int B_SM_OFFSET = 0;
 
-    // shemA[(threadIdx.y + A_SM_OFFSET) * 32 + threadIdx.x] = *reinterpret_cast<const float4 *>(a + threadIdx.y * M + blockIdx.x * 128 + threadIdx.x * 4);
-    // shemB[threadIdx.y * 32 * 2 + threadIdx.x + B_SM_OFFSET] = make_float4(*(b + (blockIdx.y * 128 + threadIdx.y * 4) * K  + threadIdx.x),
-    //     *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 1) * K + threadIdx.x),
-    //     *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 2) * K + threadIdx.x),
-    //     *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 3) * K + threadIdx.x));
-    // __syncthreads(); 
-    // if(threadIdx.x == 0 && threadIdx.y == 0){
-    //     printf(" %f", shemA[0].x);
-    // }
-    // __syncthreads();
+    shemA[(threadIdx.y + A_SM_OFFSET) * 32 + threadIdx.x] = *reinterpret_cast<const float4 *>(a + threadIdx.y * M + blockIdx.x * 128 + threadIdx.x * 4);
+    shemB[threadIdx.y * 32 * 2 + threadIdx.x + B_SM_OFFSET] = make_float4(*(b + (blockIdx.y * 128 + threadIdx.y * 4) * K  + threadIdx.x),
+        *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 1) * K + threadIdx.x),
+        *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 2) * K + threadIdx.x),
+        *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 3) * K + threadIdx.x));
+    __syncthreads(); 
 
-    // A_SM_OFFSET ^= 32;
-    // B_SM_OFFSET ^= 32;
+    A_SM_OFFSET ^= 32;
+    B_SM_OFFSET ^= 32;
 
-    // for (unsigned int k = 32; k < K; k += 32) {
-    //     shemA[(threadIdx.y + A_SM_OFFSET) * 32 + threadIdx.x] = *reinterpret_cast<const float4 *>(a + (k + threadIdx.y) * M + blockIdx.x * 128 + threadIdx.x * 4);
-    //     shemB[threadIdx.y * 32 * 2 + threadIdx.x + B_SM_OFFSET] = make_float4(*(b + (blockIdx.y * 128 + threadIdx.y * 4) * K + k + threadIdx.x),
-    //         *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 1) * K + k + threadIdx.x),
-    //         *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 2) * K + k + threadIdx.x),
-    //         *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 3) * K + k + threadIdx.x));
+    for (unsigned int k = 32; k < K; k += 32) {
+        shemA[(threadIdx.y + A_SM_OFFSET) * 32 + threadIdx.x] = *reinterpret_cast<const float4 *>(a + (k + threadIdx.y) * M + blockIdx.x * 128 + threadIdx.x * 4);
+        shemB[threadIdx.y * 32 * 2 + threadIdx.x + B_SM_OFFSET] = make_float4(*(b + (blockIdx.y * 128 + threadIdx.y * 4) * K + k + threadIdx.x),
+            *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 1) * K + k + threadIdx.x),
+            *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 2) * K + k + threadIdx.x),
+            *(b + (blockIdx.y * 128 + threadIdx.y * 4 + 3) * K + k + threadIdx.x));
 
-    //     A_SM_OFFSET ^= 32;
-    //     B_SM_OFFSET ^= 32;
+        A_SM_OFFSET ^= 32;
+        B_SM_OFFSET ^= 32;
 
-    // for(int i = 0; i < 32; i++){
-    //     fragmentA = shemA[(i + A_SM_OFFSET) * 32 + threadIdx.x];
-    //     fragmentB = shemB[threadIdx.y * 32 * 2 + i + B_SM_OFFSET];
+    for(int i = 0; i < 32; i++){
+        fragmentA = shemA[(i + A_SM_OFFSET) * 32 + threadIdx.x];
+        fragmentB = shemB[threadIdx.y * 32 * 2 + i + B_SM_OFFSET];
         
-    //     tc[0].x += fragmentA.x * fragmentB.x;
-    //     tc[0].y += fragmentA.y * fragmentB.x;
-    //     tc[0].z += fragmentA.z * fragmentB.x;
-    //     tc[0].w += fragmentA.w * fragmentB.x;
+        tc[0].x += fragmentA.x * fragmentB.x;
+        tc[0].y += fragmentA.y * fragmentB.x;
+        tc[0].z += fragmentA.z * fragmentB.x;
+        tc[0].w += fragmentA.w * fragmentB.x;
 
-    //     tc[1].x += fragmentA.x * fragmentB.y;
-    //     tc[1].y += fragmentA.y * fragmentB.y;
-    //     tc[1].z += fragmentA.z * fragmentB.y;
-    //     tc[1].w += fragmentA.w * fragmentB.y;
+        tc[1].x += fragmentA.x * fragmentB.y;
+        tc[1].y += fragmentA.y * fragmentB.y;
+        tc[1].z += fragmentA.z * fragmentB.y;
+        tc[1].w += fragmentA.w * fragmentB.y;
 
-    //     tc[2].x += fragmentA.x * fragmentB.z;
-    //     tc[2].y += fragmentA.y * fragmentB.z;
-    //     tc[2].z += fragmentA.z * fragmentB.z;
-    //     tc[2].w += fragmentA.w * fragmentB.z;
+        tc[2].x += fragmentA.x * fragmentB.z;
+        tc[2].y += fragmentA.y * fragmentB.z;
+        tc[2].z += fragmentA.z * fragmentB.z;
+        tc[2].w += fragmentA.w * fragmentB.z;
 
-    //     tc[3].x += fragmentA.x * fragmentB.w;
-    //     tc[3].y += fragmentA.y * fragmentB.w;
-    //     tc[3].z += fragmentA.z * fragmentB.w;
-    //     tc[3].w += fragmentA.w * fragmentB.w;
+        tc[3].x += fragmentA.x * fragmentB.w;
+        tc[3].y += fragmentA.y * fragmentB.w;
+        tc[3].z += fragmentA.z * fragmentB.w;
+        tc[3].w += fragmentA.w * fragmentB.w;
 
-    //     }
+        }
     
-    //     __syncthreads();
-    // }
+        __syncthreads();
+    }
 
-    // A_SM_OFFSET ^= 32;
-    // B_SM_OFFSET ^= 32;
+    A_SM_OFFSET ^= 32;
+    B_SM_OFFSET ^= 32;
 
-    // for(int i = 0; i < 32; i++){
-    //     fragmentA = shemA[(i + A_SM_OFFSET) * 32 + threadIdx.x];
-    //     fragmentB = shemB[threadIdx.y * 32 * 2 + i + B_SM_OFFSET];
+    for(int i = 0; i < 32; i++){
+        fragmentA = shemA[(i + A_SM_OFFSET) * 32 + threadIdx.x];
+        fragmentB = shemB[threadIdx.y * 32 * 2 + i + B_SM_OFFSET];
         
-    //     tc[0].x += fragmentA.x * fragmentB.x;
-    //     tc[0].y += fragmentA.y * fragmentB.x;
-    //     tc[0].z += fragmentA.z * fragmentB.x;
-    //     tc[0].w += fragmentA.w * fragmentB.x;
+        tc[0].x += fragmentA.x * fragmentB.x;
+        tc[0].y += fragmentA.y * fragmentB.x;
+        tc[0].z += fragmentA.z * fragmentB.x;
+        tc[0].w += fragmentA.w * fragmentB.x;
 
-    //     tc[1].x += fragmentA.x * fragmentB.y;
-    //     tc[1].y += fragmentA.y * fragmentB.y;
-    //     tc[1].z += fragmentA.z * fragmentB.y;
-    //     tc[1].w += fragmentA.w * fragmentB.y;
+        tc[1].x += fragmentA.x * fragmentB.y;
+        tc[1].y += fragmentA.y * fragmentB.y;
+        tc[1].z += fragmentA.z * fragmentB.y;
+        tc[1].w += fragmentA.w * fragmentB.y;
 
-    //     tc[2].x += fragmentA.x * fragmentB.z;
-    //     tc[2].y += fragmentA.y * fragmentB.z;
-    //     tc[2].z += fragmentA.z * fragmentB.z;
-    //     tc[2].w += fragmentA.w * fragmentB.z;
+        tc[2].x += fragmentA.x * fragmentB.z;
+        tc[2].y += fragmentA.y * fragmentB.z;
+        tc[2].z += fragmentA.z * fragmentB.z;
+        tc[2].w += fragmentA.w * fragmentB.z;
 
-    //     tc[3].x += fragmentA.x * fragmentB.w;
-    //     tc[3].y += fragmentA.y * fragmentB.w;
-    //     tc[3].z += fragmentA.z * fragmentB.w;
-    //     tc[3].w += fragmentA.w * fragmentB.w;
+        tc[3].x += fragmentA.x * fragmentB.w;
+        tc[3].y += fragmentA.y * fragmentB.w;
+        tc[3].z += fragmentA.z * fragmentB.w;
+        tc[3].w += fragmentA.w * fragmentB.w;
 
-    //     }
+        }
 
-    // for(int i = 0; i < 4; i++){
-    //     tc[i].x = alpha * tc[i].x;
-    //     tc[i].y = alpha * tc[i].y;
-    //     tc[i].z = alpha * tc[i].z;
-    //     tc[i].w = alpha * tc[i].w;
-    // }
+    for(int i = 0; i < 4; i++){
+        tc[i].x = alpha * tc[i].x;
+        tc[i].y = alpha * tc[i].y;
+        tc[i].z = alpha * tc[i].z;
+        tc[i].w = alpha * tc[i].w;
+    }
 
-    // if (blockIdx.y * 128 + threadIdx.y * 4 >= M || blockIdx.x * 128 + threadIdx.x * 4 >= N){
-    //     return;
-    // } 
-    // for(int i = 0; i < 4; i++){
-    //     f4c[((blockIdx.y * 128 + threadIdx.y * 4 + i) * M + blockIdx.x * 128 + threadIdx.x * 4) / 4] = tc[i];
-    // }
+    if (blockIdx.y * 128 + threadIdx.y * 4 >= M || blockIdx.x * 128 + threadIdx.x * 4 >= N){
+        return;
+    } 
+    for(int i = 0; i < 4; i++){
+        f4c[((blockIdx.y * 128 + threadIdx.y * 4 + i) * M + blockIdx.x * 128 + threadIdx.x * 4) / 4] = tc[i];
+    }
 }
 
 void CallKernel1(const float * deva, const float * devb, float * devc, float alpha, float beta, int M, int N, int K){
@@ -337,18 +328,13 @@ void CallKernel4(const float * deva, const float * devb, float * devc, float alp
 }
 
 void CallKernel5(const float * deva, const float * devb, float * devc, float alpha, float beta, int M, int N, int K){
-    cudaFuncSetCacheConfig(gemmKernel5, cudaFuncCachePreferShared);
-    printf("CallKernel5\n");
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0); // 获取设备属性
-
-    int sharedMemorySize = 65536; // 要设置的共享内存大小
-    if (sharedMemorySize > prop.sharedMemPerBlock) {
-        std::cout << "Error: Shared memory size exceeds device limit" << std::endl;
-        std::cout << prop.sharedMemPerBlock << std::endl;
-    }
+    // cudaFuncSetCacheConfig(gemmKernel5, cudaFuncCachePreferShared);
+    constexpr int sharedMemorySize = 32 * 32 * 4 * 4 * 4;
+    cudaFuncSetAttribute(
+        gemmKernel5,
+        cudaFuncAttributeMaxDynamicSharedMemorySize, sharedMemorySize);
     dim3 block(32 , 32);
     dim3 grid((M - 1) / block.x + 1, (N - 1)/ block.y + 1);
-    gemmKernel5<<< grid, block, 32 * 32 * 4 * 4 * 4 >>>(deva, devb, devc, alpha, beta, M, N, K);
+    gemmKernel5<<< grid, block, sharedMemorySize >>>(deva, devb, devc, alpha, beta, M, N, K);
     cudaDeviceSynchronize();
 }
