@@ -27,10 +27,15 @@ set(SOURCE_FILES
 # Add the executable
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
+#假设你想为CUDA目标添加编译选项
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    CUDA_NVCC_FLAGS "--ptxas-options=-v"
+)
+
 target_link_libraries(${PROJECT_NAME} PRIVATE CUDA::cudart CUDA::cublas)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
-    # CUDA_SEPARABLE_COMPILATION ON # 允许分离编译
+    CUDA_SEPARABLE_COMPILATION ON # 允许分离编译
     CUDA_ARCHITECTURES 86
 )
 find_package(OpenMP)

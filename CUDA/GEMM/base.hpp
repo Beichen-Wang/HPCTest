@@ -1,55 +1,24 @@
 #pragma once
 #include "cuda_runtime.h"
 
-namespace GEMM{
-struct __device_builtin__ __builtin_align__(16) float4 {
-  float data[4];
+#define RunBenchmark(...) \
+    do{ \
+        cudaEvent_t start, stop; \
+        cudaEventCreate(&start); \
+        cudaEventCreate(&stop); \
+        float msecTotal = 0; \
+        int nIter = 100; \
+        cudaEventRecord(start); \
+        for (int run = 0 ; run < nIter; run ++ ) { \
+            __VA_ARGS__; \
+        } \
+        cudaEventRecord(stop); \
+        cudaEventSynchronize(stop); \
+        cudaEventElapsedTime(&msecTotal, start, stop); \
+        float msecPerMatrixMul = msecTotal / nIter; \
+        printf( " Time= %.3f msec\n", msecPerMatrixMul); \
+    } while(0)
 
-  __host__ __device__ float operator[](unsigned idx) const { return data[idx]; }
+#define OFFSET(row, col, ld) ((row) * (ld) + (col))
 
-  __host__ __device__ float &operator[](unsigned idx) { return data[idx]; }
-
-  __host__ __device__ float4 operator*(float other) const {
-    return float4{data[0] * other, data[1] * other, data[2] * other,
-                  data[3] * other};
-  }
-
-  __host__ __device__ float4 operator+(const float4 &other) const {
-    return float4{data[0] + other.data[0], data[1] + other.data[1],
-                  data[2] + other.data[2], data[3] + other.data[3]};
-  }
-};
-
-template <typename T>
-struct __device_builtin__ Tensor2D {
-  T *const __restrict__ ptr;
-  const unsigned rows, cols;
-  int _rowOffset{0}, _colOffset{0};
-
-  template <typename t>
-  __host__ __device__ Tensor2D(t &&ptr, unsigned rows, unsigned cols)
-      : ptr{reinterpret_cast<T *>(ptr)}, rows{rows}, cols{cols} {};
-
-  template <typename t = T>
-  __host__ __device__ void addOffset(int rowOffset, int colOffset) {
-    _rowOffset += rowOffset;
-    _colOffset += colOffset * sizeof(t) / sizeof(T);
-  }
-
-  __host__ __device__ bool validRowOffset(int rowOffset) const {
-    return (_rowOffset + rowOffset) < rows;
-  }
-
-  __host__ __device__ bool validColOffset(int colOffset) const {
-    return (_colOffset + colOffset) < cols;
-  }
-
-  __host__ __device__ bool validOffset(int rowOffset, int colOffset) const {
-    return validRowOffset(rowOffset) && validColOffset(colOffset);
-  }
-
-  __host__ __device__ T &operator()(int row, int col) const {
-    return ptr[_colOffset + col + (row + _rowOffset) * cols];
-  }
-};
-} // end of namespace
+#define FETCH_FLOAT4(pointer) (reinterpret_cast<float4*>(&(pointer))[0])
