@@ -7,7 +7,7 @@
         cudaEventCreate(&start); \
         cudaEventCreate(&stop); \
         float msecTotal = 0; \
-        int nIter = 100; \
+        int nIter = 1; \
         cudaEventRecord(start); \
         for (int run = 0 ; run < nIter; run ++ ) { \
             __VA_ARGS__; \

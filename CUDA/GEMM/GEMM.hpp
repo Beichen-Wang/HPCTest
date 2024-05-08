@@ -22,6 +22,9 @@ extern "C" {
 void CallKernel1(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K);
 void CallKernel2(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K);
 void CallKernel3(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K);
+void CallKernel3_1(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K);
+void CallKernel3_2(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K);
+
 void CallKernel4(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K);
 void CallKernel5(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K);
 void CallKernel6(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K);
@@ -52,8 +55,8 @@ class GEMM {
     int K;
     float * deva, * devb, * devc;
     cublasHandle_t handle;
-    void (*kernelPointers[10])(float*, float*, float*, float, float, int, int, int) = {
-        CallKernel1, CallKernel2, CallKernel3, CallKernel4, CallKernel5, CallKernel6, CallKernel7, CallKernel8, CallKernel9, CallKernel10};
+    void (*kernelPointers[11])(float*, float*, float*, float, float, int, int, int) = {
+        CallKernel1, CallKernel2, CallKernel3, CallKernel3_1, CallKernel4, CallKernel5, CallKernel6, CallKernel7, CallKernel8, CallKernel9, CallKernel10};
     public:
     ~GEMM(){
         cudaFree(deva);
@@ -123,8 +126,8 @@ class GEMM {
     Eigen::MatrixXf CUDAExecute(int i){
         c.setZero();
         cudaMemset(devc, 0, M * N * sizeof(float));
-        // CallKernel10(deva, devb, devc, alpha, beta, M, N, K); 
-        kernelPointers[i](deva, devb, devc, alpha, beta, M, N, K);
+        CallKernel3_2(deva, devb, devc, alpha, beta, M, N, K); 
+        // kernelPointers[i](deva, devb, devc, alpha, beta, M, N, K);
         cudaMemcpy(c.data(), devc, M * N * sizeof(float), cudaMemcpyDeviceToHost); 
         return c;
     }
@@ -132,7 +135,7 @@ class GEMM {
     Eigen::MatrixXf CUBLASExecute(){
         c.setZero();
         cudaMemset(devc, 0, M * N * sizeof(float));
-        printf(" cublass");
+        printf(" cublas");
         RunBenchmark(cublasSgemm(handle, CUBLAS_OP_N, CUBLAS_OP_N, M, N, K, &alpha, deva, M, devb, K, &beta, devc, M));
         // cublasSgemm(handle, CUBLAS_OP_T, CUBLAS_OP_T, M, N, K, &alpha, deva, M, devb, K, &beta, devc, M); 
         cudaMemcpy(c.data(), devc, M * N * sizeof(float), cudaMemcpyDeviceToHost); 
@@ -140,9 +143,9 @@ class GEMM {
     }
 
      void checkAndPrintTiming() {
-        std::vector<Eigen::MatrixXf> cudaResult(10);
+        std::vector<Eigen::MatrixXf> cudaResult(11);
         auto cublasResult = this->CUBLASExecute();
-        for(int i = 0; i < 10; i++){
+        for(int i = 0; i < 1; i++){
             cudaResult[i] = this->CUDAExecute(i);
 
             if (cublasResult.isApprox(cudaResult[i], 1e-6)) {
