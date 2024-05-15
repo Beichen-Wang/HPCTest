@@ -55,8 +55,8 @@ class GEMM {
     int K;
     float * deva, * devb, * devc;
     cublasHandle_t handle;
-    void (*kernelPointers[11])(float*, float*, float*, float, float, int, int, int) = {
-        CallKernel1, CallKernel2, CallKernel3, CallKernel3_1, CallKernel4, CallKernel5, CallKernel6, CallKernel7, CallKernel8, CallKernel9, CallKernel10};
+    void (*kernelPointers[12])(float*, float*, float*, float, float, int, int, int) = {
+        CallKernel1, CallKernel2, CallKernel3, CallKernel3_1, CallKernel3_2, CallKernel4, CallKernel5, CallKernel6, CallKernel7, CallKernel8, CallKernel9, CallKernel10};
     public:
     ~GEMM(){
         cudaFree(deva);
@@ -126,8 +126,8 @@ class GEMM {
     Eigen::MatrixXf CUDAExecute(int i){
         c.setZero();
         cudaMemset(devc, 0, M * N * sizeof(float));
-        CallKernel3_2(deva, devb, devc, alpha, beta, M, N, K); 
-        // kernelPointers[i](deva, devb, devc, alpha, beta, M, N, K);
+        // CallKernel3_2(deva, devb, devc, alpha, beta, M, N, K); 
+        kernelPointers[i](deva, devb, devc, alpha, beta, M, N, K);
         cudaMemcpy(c.data(), devc, M * N * sizeof(float), cudaMemcpyDeviceToHost); 
         return c;
     }
@@ -143,9 +143,9 @@ class GEMM {
     }
 
      void checkAndPrintTiming() {
-        std::vector<Eigen::MatrixXf> cudaResult(11);
+        std::vector<Eigen::MatrixXf> cudaResult(12);
         auto cublasResult = this->CUBLASExecute();
-        for(int i = 0; i < 1; i++){
+        for(int i = 0; i < 12; i++){
             cudaResult[i] = this->CUDAExecute(i);
 
             if (cublasResult.isApprox(cudaResult[i], 1e-6)) {

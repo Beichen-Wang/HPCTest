@@ -192,84 +192,85 @@ __global__ void gemmKernel3_1(float * a, float * b, float *c, float alpha, float
 
 __launch_bounds__(256, 1)
 __global__ void gemmKernel3_2(float * a, float * b, float *c, float alpha, float beta, int M, int N, int K){
-    unsigned int m = (threadIdx.x + blockDim.x * blockIdx.x) * 8;
-    unsigned int n = (threadIdx.y + blockDim.y * blockIdx.y) * 8;
-    if(m >= M || n >= N){
-        return;
-    }
-    float4 tc[4][4] = {{make_float4(0.0f, 0.0f, 0.0f, 0.0f)}};
-    float4 * f4c = reinterpret_cast<float4 *>(c);
-    float4 fragmentA[2][2];
-    float4 fragmentB[2][2];
+    if((threadIdx.x + blockDim.x * blockIdx.x) * 8 < M && (threadIdx.y + blockDim.y * blockIdx.y) * 8 < N){
+        
+        unsigned int m = (threadIdx.x + blockDim.x * blockIdx.x) * 8;
+        unsigned int n = (threadIdx.y + blockDim.y * blockIdx.y) * 8;
+        float4 tc[4][4] = {{make_float4(0.0f, 0.0f, 0.0f, 0.0f)}};
+        float4 * f4c = reinterpret_cast<float4 *>(c);
+        float4 fragmentA[2][2];
+        float4 fragmentB[2][2];
 
-    int REG_OFFSET = 0;
+        int REG_OFFSET = 0;
 
-    int k = 0;
-    fragmentA[0][0] = FETCH_FLOAT4(a[OFFSET(
-            k,
-            m,
-            M)]);
-    fragmentB[0][0] = make_float4(*(b + n * K + k), *(b + (n + 1) * K + k),*(b + (n + 2) * K + k), *(b + (n + 3) * K + k));
-    fragmentA[0][1] = FETCH_FLOAT4(a[OFFSET(
-            k,
-            m + 4,
-            M)]);
-    fragmentB[0][1] = make_float4(*(b + (n + 4) * K + k), *(b + (n + 5) * K + k),*(b + (n + 6) * K + k), *(b + (n + 7) * K + k));
-
-    REG_OFFSET ^= 1;
-// #pragma unroll
-    for (k = 1; k < K; ++k) {
-        fragmentA[REG_OFFSET][0] = FETCH_FLOAT4(a[OFFSET(
-            k,
-            m,
-            M)]);
-        fragmentA[REG_OFFSET][1] = FETCH_FLOAT4(a[OFFSET(
-            k,
-            m + 4,
-            M)]);
-        fragmentB[REG_OFFSET][0] = make_float4(*(b + n * K + k), *(b + (n + 1) * K + k),*(b + (n + 2) * K + k), *(b + (n + 3) * K + k));
-        fragmentB[REG_OFFSET][1] = make_float4(*(b + (n + 4) * K + k), *(b + (n + 5) * K + k),*(b + (n + 6) * K + k), *(b + (n + 7) * K + k));
+        int k = 0;
+        fragmentA[0][0] = FETCH_FLOAT4(a[OFFSET(
+                k,
+                m,
+                M)]);
+        fragmentB[0][0] = make_float4(*(b + n * K + k), *(b + (n + 1) * K + k),*(b + (n + 2) * K + k), *(b + (n + 3) * K + k));
+        fragmentA[0][1] = FETCH_FLOAT4(a[OFFSET(
+                k,
+                m + 4,
+                M)]);
+        fragmentB[0][1] = make_float4(*(b + (n + 4) * K + k), *(b + (n + 5) * K + k),*(b + (n + 6) * K + k), *(b + (n + 7) * K + k));
 
         REG_OFFSET ^= 1;
+    #pragma unroll
+        for (k = 1; k < K; ++k) {
+                fragmentA[REG_OFFSET][0] = FETCH_FLOAT4(a[OFFSET(
+                k,
+                m,
+                M)]);
+                fragmentA[REG_OFFSET][1] = FETCH_FLOAT4(a[OFFSET(
+                    k,
+                    m + 4,
+                    M)]);
+                fragmentB[REG_OFFSET][0] = make_float4(*(b + n * K + k), *(b + (n + 1) * K + k),*(b + (n + 2) * K + k), *(b + (n + 3) * K + k));
+                fragmentB[REG_OFFSET][1] = make_float4(*(b + (n + 4) * K + k), *(b + (n + 5) * K + k),*(b + (n + 6) * K + k), *(b + (n + 7) * K + k));
+
+                REG_OFFSET ^= 1;
+                mma4_4(fragmentA[REG_OFFSET][0], fragmentB[REG_OFFSET][0], tc[0]);
+                mma4_4(fragmentA[REG_OFFSET][1], fragmentB[REG_OFFSET][0], tc[1]);
+                mma4_4(fragmentA[REG_OFFSET][0], fragmentB[REG_OFFSET][1], tc[2]);
+                mma4_4(fragmentA[REG_OFFSET][1], fragmentB[REG_OFFSET][1], tc[3]);
+            }
+        REG_OFFSET ^= 1;
+
         mma4_4(fragmentA[REG_OFFSET][0], fragmentB[REG_OFFSET][0], tc[0]);
         mma4_4(fragmentA[REG_OFFSET][1], fragmentB[REG_OFFSET][0], tc[1]);
         mma4_4(fragmentA[REG_OFFSET][0], fragmentB[REG_OFFSET][1], tc[2]);
         mma4_4(fragmentA[REG_OFFSET][1], fragmentB[REG_OFFSET][1], tc[3]);
-    }
-    REG_OFFSET ^= 1;
-    mma4_4(fragmentA[REG_OFFSET][0], fragmentB[REG_OFFSET][0], tc[0]);
-    mma4_4(fragmentA[REG_OFFSET][1], fragmentB[REG_OFFSET][0], tc[1]);
-    mma4_4(fragmentA[REG_OFFSET][0], fragmentB[REG_OFFSET][1], tc[2]);
-    mma4_4(fragmentA[REG_OFFSET][1], fragmentB[REG_OFFSET][1], tc[3]);
 
-#pragma unroll
-    for(int index = 0; index < 4; index++){
+    #pragma unroll
+        for(int index = 0; index < 4; index++){
+            for(int k = 0; k < 4; k++){
+                tc[index][k].x = alpha * tc[index][k].x;
+                tc[index][k].y = alpha * tc[index][k].y;
+                tc[index][k].z = alpha * tc[index][k].z;
+                tc[index][k].w = alpha * tc[index][k].w;
+            } 
+        }  
+
+    #pragma unroll
         for(int k = 0; k < 4; k++){
-            tc[index][k].x = alpha * tc[index][k].x;
-            tc[index][k].y = alpha * tc[index][k].y;
-            tc[index][k].z = alpha * tc[index][k].z;
-            tc[index][k].w = alpha * tc[index][k].w;
-        } 
-    }  
+            f4c[((n + k) * M + m)/4] = tc[0][k];
+        }
 
-#pragma unroll
-    for(int k = 0; k < 4; k++){
-        f4c[((n + k) * M + m)/4] = tc[0][k];
-    }
+    #pragma unroll
+        for(int k = 0; k < 4; k++){
+            f4c[((n + k) * M + m + 4)/4] = tc[1][k];
+        }
 
-#pragma unroll
-    for(int k = 0; k < 4; k++){
-        f4c[((n + k) * M + m + 4)/4] = tc[1][k];
-    }
+    #pragma unroll
+        for(int k = 0; k < 4; k++){
+            f4c[((n + k + 4) * M + m)/4] = tc[2][k];
+        }
 
-#pragma unroll
-    for(int k = 0; k < 4; k++){
-        f4c[((n + k + 4) * M + m)/4] = tc[2][k];
-    }
-
-#pragma unroll
-    for(int k = 0; k < 4; k++){
-        f4c[((n + k + 4) * M + m + 4)/4] = tc[3][k];
+    #pragma unroll
+        for(int k = 0; k < 4; k++){
+            f4c[((n + k + 4) * M + m + 4)/4] = tc[3][k];
+        }
     }
 }
 
@@ -1290,7 +1291,7 @@ void CallKernel2(float * deva, float * devb, float * devc, float alpha, float be
 
 void CallKernel3(float * deva, float * devb, float * devc, float alpha, float beta, int M, int N, int K){
     // dim3 block(16 , 16);
-    dim3 block(32 , 32);
+    dim3 block(32, 32);
     dim3 grid((M /8 - 1) / block.x + 1, (N / 8 - 1)/ block.y + 1);
     printf(" Kernel3");
     RunBenchmark({
