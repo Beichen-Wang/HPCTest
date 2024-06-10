@@ -9,4 +9,5 @@ build
 *.onnx
 *.params
 *.out
+*.bin
 
